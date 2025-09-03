@@ -32,10 +32,10 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "10080"))
 
     # Chat Provider settings
-    CHAT_PROVIDER: str = os.getenv("CHAT_PROVIDER", "openai")
+    CHAT_PROVIDER: str = os.getenv("CHAT_PROVIDER", "ollama")
 
     # Embeddings settings
-    EMBEDDINGS_PROVIDER: str = os.getenv("EMBEDDINGS_PROVIDER", "openai")
+    EMBEDDINGS_PROVIDER: str = os.getenv("EMBEDDINGS_PROVIDER", "ollama")
 
     # MinIO settings
     MINIO_ENDPOINT: str = os.getenv("MINIO_ENDPOINT", "localhost:9000")
@@ -71,7 +71,7 @@ class Settings(BaseSettings):
 
     # Ollama settings
     OLLAMA_API_BASE: str = "http://localhost:11434"
-    OLLAMA_MODEL: str = "deepseek-r1:7b"
+    OLLAMA_MODEL: str = "gemma3:4b"
     OLLAMA_EMBEDDINGS_MODEL: str = os.getenv(
         "OLLAMA_EMBEDDINGS_MODEL", "nomic-embed-text"
     )  # Added this line

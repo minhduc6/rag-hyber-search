@@ -29,11 +29,13 @@ def create_chat(
     knowledge_bases = (
         db.query(KnowledgeBase)
         .filter(
-            KnowledgeBase.id.in_(chat_in.knowledge_base_ids),
-            KnowledgeBase.user_id == current_user.id
+            KnowledgeBase.id.in_(chat_in.knowledge_base_ids)
         )
         .all()
     )
+
+    print("knowledge_bases: ", chat_in)
+    print("data_database: ", knowledge_bases)
     if len(knowledge_bases) != len(chat_in.knowledge_base_ids):
         raise HTTPException(
             status_code=400,
@@ -44,11 +46,12 @@ def create_chat(
         title=chat_in.title,
         user_id=current_user.id,
     )
-    chat.knowledge_bases = knowledge_bases
+    chat.knowledge_bases.extend(knowledge_bases) 
     
     db.add(chat)
+    db.flush()             # Đảm bảo dữ liệu được đẩy vào DB trước commit
     db.commit()
-    db.refresh(chat)
+    db.refresh(chat)       # Load lại quan hệ knowledge_bases mới
     return chat
 
 @router.get("/", response_model=List[ChatResponse])
@@ -86,6 +89,8 @@ def get_chat(
         raise HTTPException(status_code=404, detail="Chat not found")
     return chat
 
+from fastapi.responses import JSONResponse
+
 @router.post("/{chat_id}/messages")
 async def create_message(
     *,
@@ -93,7 +98,7 @@ async def create_message(
     chat_id: int,
     messages: dict,
     current_user: User = Depends(get_current_user)
-) -> StreamingResponse:
+):
     chat = (
         db.query(Chat)
         .options(joinedload(Chat.knowledge_bases))
@@ -106,31 +111,27 @@ async def create_message(
     if not chat:
         raise HTTPException(status_code=404, detail="Chat not found")
     
-    # Get the last user message
     last_message = messages["messages"][-1]
     if last_message["role"] != "user":
         raise HTTPException(status_code=400, detail="Last message must be from user")
     
-    # Get knowledge base IDs
     knowledge_base_ids = [kb.id for kb in chat.knowledge_bases]
 
-    async def response_stream():
-        async for chunk in generate_response(
+    # Accumulate the full response from the async generator
+    response_content = ""
+    async for chunk in generate_response(
             query=last_message["content"],
             messages=messages,
             knowledge_base_ids=knowledge_base_ids,
             chat_id=chat_id,
             db=db
         ):
-            yield chunk
+        response_content += chunk
+    
+    # Return the full response as JSON or text, as needed
+    # Assuming the response is a string with the message content
+    return JSONResponse(content={"response": response_content})
 
-    return StreamingResponse(
-        response_stream(),
-        media_type="text/event-stream",
-        headers={
-            "x-vercel-ai-data-stream": "v1"
-        }
-    )
 
 @router.delete("/{chat_id}")
 def delete_chat(

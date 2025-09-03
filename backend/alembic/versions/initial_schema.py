@@ -59,8 +59,7 @@ def upgrade() -> None:
         sa.Column('created_at', sa.DateTime(), nullable=False),
         sa.Column('updated_at', sa.DateTime(), nullable=False),
         sa.ForeignKeyConstraint(['knowledge_base_id'], ['knowledge_bases.id'], ),
-        sa.PrimaryKeyConstraint('id'),
-        sa.UniqueConstraint('knowledge_base_id', 'file_name', name='uq_kb_file_name')
+        sa.PrimaryKeyConstraint('id')
     )
 
     # Create document_chunks table
@@ -73,7 +72,6 @@ def upgrade() -> None:
         sa.Column('hash', sa.String(64), nullable=False),
         sa.Column('created_at', sa.TIMESTAMP(), server_default=sa.text('CURRENT_TIMESTAMP')),
         sa.Column('updated_at', sa.TIMESTAMP(), server_default=sa.text('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP')),
-        sa.PrimaryKeyConstraint('id')
     )
 
     # Create chats table

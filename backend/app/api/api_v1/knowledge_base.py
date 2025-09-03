@@ -237,22 +237,22 @@ async def upload_kb_documents(
         file_hash = hashlib.sha256(file_content).hexdigest()
         
         # 2. 检查是否存在完全相同的文件（名称和hash都相同）
-        existing_document = db.query(Document).filter(
-            Document.file_name == file.filename,
-            Document.file_hash == file_hash,
-            Document.knowledge_base_id == kb_id
-        ).first()
+        # existing_document = db.query(Document).filter(
+        #     Document.file_name == file.filename,
+        #     Document.file_hasheyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9 == file_hash,
+        #     Document.knowledge_base_id == kb_id
+        # ).first()
         
-        if existing_document:
-            # 完全相同的文件，直接返回
-            results.append({
-                "document_id": existing_document.id,
-                "file_name": existing_document.file_name,
-                "status": "exists",
-                "message": "文件已存在且已处理完成",
-                "skip_processing": True
-            })
-            continue
+        # if existing_document:
+        #     # 完全相同的文件，直接返回
+        #     results.append({
+        #         "document_id": existing_document.id,
+        #         "file_name": existing_document.file_name,
+        #         "status": "exists",
+        #         "message": "文件已存在且已处理完成",
+        #         "skip_processing": True
+        #     })
+        #     continue
         
         # 3. 上传到临时目录
         temp_path = f"kb_{kb_id}/temp/{file.filename}"
@@ -567,6 +567,54 @@ async def test_retrieval(
                 "content": doc.page_content,
                 "metadata": doc.metadata,
                 "score": float(score)
+            })
+            
+        return {"results": response}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/test-hybrid-retrieval")
+async def test_hybrid_retrieval(
+    request: TestRetrievalRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+) -> Any:
+    """
+    Test hybrid retrieval quality (BM25 + vector) for a given query against a knowledge base.
+    """
+    try:
+        kb = db.query(KnowledgeBase).filter(
+            KnowledgeBase.id == request.kb_id,
+        ).first()
+        
+        if not kb:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Knowledge base {request.kb_id} not found",
+            )
+        
+        embeddings = EmbeddingsFactory.create()
+        KnowledgeBase.user_id == current_user.id
+        vector_store = VectorStoreFactory.create(
+            store_type=settings.VECTOR_STORE_TYPE,
+            collection_name=f"kb_{request.kb_id}",
+            embedding_function=embeddings,
+        )
+        
+        # Ensure BM25 retriever is built only once on startup in vector_store
+        
+        results = vector_store.hybrid_search(request.query, k=request.top_k)
+        
+        response = []
+        for doc in results:
+            # hybrid_search returns a list of Document objects (without explicit scores by _invoke)
+            response.append({
+                "content": doc.page_content,
+                "metadata": doc.metadata,
+                # Optionally you can add score if your hybrid_search returns scores
             })
             
         return {"results": response}

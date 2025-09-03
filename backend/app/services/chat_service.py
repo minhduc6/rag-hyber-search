@@ -14,7 +14,7 @@ from langchain.globals import set_verbose, set_debug
 from app.services.vector_store import VectorStoreFactory
 from app.services.embedding.embedding_factory import EmbeddingsFactory
 from app.services.llm.llm_factory import LLMFactory
-
+from app.services.vector_store.chroma import StaticListRetriever
 set_verbose(True)
 set_debug(True)
 
@@ -53,71 +53,115 @@ async def generate_response(
         
         # Initialize embeddings
         embeddings = EmbeddingsFactory.create()
-        
-        # Create a vector store for each knowledge base
+
+        # top_k = 3
+        # score_threshold = 0.6
+
+        # vector_stores = []
+        # for kb in knowledge_bases:
+        #     documents = db.query(Document).filter(Document.knowledge_base_id == kb.id).all()
+        #     if documents:
+        #         vector_store = VectorStoreFactory.create(
+        #             store_type=settings.VECTOR_STORE_TYPE,
+        #             collection_name=f"kb_{kb.id}",
+        #             embedding_function=embeddings,
+        #         )
+        #         vector_stores.append(vector_store)
+
+        # if not vector_stores:
+        #     error_msg = "I don't have any knowledge base to help answer your question."
+        #     yield f'0:"{error_msg}"\n'
+        #     bot_message.content = error_msg
+        #     db.commit()
+        #     return
+
+        # # Truy vấn và lọc score
+        # vs = vector_stores[0]
+        # print("Vector store:", vs)
+        # results = vs.similarity_search_with_score(query, k=top_k)  # [(doc, score), ...]
+        # print("Raw results:", results)
+        # filtered_docs = [doc for doc, score in results if score >= score_threshold]
+        # print("Filtered results:", filtered_docs)
+
+        # if not filtered_docs:
+        #     error_msg = "Information is missing on related topic."
+        #     yield f'0:"{error_msg}"\n'
+        #     bot_message.content = error_msg
+        #     db.commit()
+        #     return
+        top_k = 5
+
         vector_stores = []
         for kb in knowledge_bases:
             documents = db.query(Document).filter(Document.knowledge_base_id == kb.id).all()
             if documents:
-                # Use the factory to create the appropriate vector store
                 vector_store = VectorStoreFactory.create(
-                    store_type=settings.VECTOR_STORE_TYPE,  # 'chroma' or other supported types
+                    store_type=settings.VECTOR_STORE_TYPE,
                     collection_name=f"kb_{kb.id}",
                     embedding_function=embeddings,
                 )
-                print(f"Collection {f'kb_{kb.id}'} count:", vector_store._store._collection.count())
                 vector_stores.append(vector_store)
-        
+
         if not vector_stores:
             error_msg = "I don't have any knowledge base to help answer your question."
             yield f'0:"{error_msg}"\n'
-            yield 'd:{"finishReason":"stop","usage":{"promptTokens":0,"completionTokens":0}}\n'
             bot_message.content = error_msg
             db.commit()
             return
-        
-        # Use first vector store for now
-        retriever = vector_stores[0].as_retriever()
-        
+
+        # Thay vì dùng similarity_search_with_score và lọc score thủ công
+        # ta dùng phương thức hybrid_search đã tích hợp BM25 với vector
+        vs = vector_stores[0]
+        print("Vector store:", vs)
+
+        # Gọi hybrid_search với top_k và trọng số weights để cân bằng vector và bm25
+        results = vs.hybrid_search(query, k=top_k, weights=[0.4, 0.6])  # trả về danh sách Document, không có score
+
+        print("Hybrid search results:", results)
+
+        if not results:
+            error_msg = "Information is missing on related topic."
+            yield f'0:"{error_msg}"\n'
+            bot_message.content = error_msg
+            db.commit()
+            return
         # Initialize the language model
         llm = LLMFactory.create()
         
         # Create contextualize question prompt
         contextualize_q_system_prompt = (
-            "Given a chat history and the latest user question "
-            "which might reference context in the chat history, "
-            "formulate a standalone question which can be understood "
-            "without the chat history. Do NOT answer the question, just "
-            "reformulate it if needed and otherwise return it as is."
+            "Dựa trên lịch sử hội thoại và câu hỏi mới nhất của người dùng "
+            "có thể tham chiếu đến ngữ cảnh trong lịch sử hội thoại, "
+            "hãy xây dựng lại câu hỏi sao cho nó có thể hiểu được độc lập "
+            "mà không cần đến lịch sử hội thoại. KHÔNG trả lời câu hỏi, chỉ "
+            "định dạng lại câu hỏi nếu cần, hoặc giữ nguyên nếu đã rõ."
         )
         contextualize_q_prompt = ChatPromptTemplate.from_messages([
             ("system", contextualize_q_system_prompt),
             MessagesPlaceholder("chat_history"),
             ("human", "{input}")
         ])
+
+        filtered_retriever = StaticListRetriever(docs=results)
+
         
         # Create history aware retriever
         history_aware_retriever = create_history_aware_retriever(
             llm, 
-            retriever,
+            filtered_retriever,
             contextualize_q_prompt
         )
 
         # Create QA prompt
+        # Prompt trả lời QA tối ưu (chuyên nghiệp, có trích dẫn)
         qa_system_prompt = (
-            "You are given a user question, and please write clean, concise and accurate answer to the question. "
-            "You will be given a set of related contexts to the question, which are numbered sequentially starting from 1. "
-            "Each context has an implicit reference number based on its position in the array (first context is 1, second is 2, etc.). "
-            "Please use these contexts and cite them using the format [citation:x] at the end of each sentence where applicable. "
-            "Your answer must be correct, accurate and written by an expert using an unbiased and professional tone. "
-            "Please limit to 1024 tokens. Do not give any information that is not related to the question, and do not repeat. "
-            "Say 'information is missing on' followed by the related topic, if the given context do not provide sufficient information. "
-            "If a sentence draws from multiple contexts, please list all applicable citations, like [citation:1][citation:2]. "
-            "Other than code and specific names and citations, your answer must be written in the same language as the question. "
-            "Be concise.\n\nContext: {context}\n\n"
-            "Remember: Cite contexts by their position number (1 for first context, 2 for second, etc.) and don't blindly "
-            "repeat the contexts verbatim."
+            "Bạn là một trợ lý AI chuyên tra cứu QUY TRÌNH NỘI BỘ.\n"
+            "Bạn chỉ được phép sử dụng thông tin trong QUY TRÌNH NỘI BỘ để trả lời câu hỏi.\n"
+            "Nếu không tìm thấy thông tin hoặc không chắc chắn, hãy báo rõ.\n"
+            "Trả lời ngắn gọn, chính xác, lịch sự, có trích dẫn đoạn tham chiếu theo định dạng [Trích dẫn: đoạn số X].\n"
+            "QUY TRÌNH NỘI BỘ:\n{context}"
         )
+
         qa_prompt = ChatPromptTemplate.from_messages([
             ("system", qa_system_prompt),
             MessagesPlaceholder("chat_history"),
@@ -157,38 +201,35 @@ async def generate_response(
             "input": query,
             "chat_history": chat_history
         }):
-            if "context" in chunk:
-                serializable_context = []
-                for context in chunk["context"]:
-                    serializable_doc = {
-                        "page_content": context.page_content.replace('"', '\\"'),
-                        "metadata": context.metadata,
-                    }
-                    serializable_context.append(serializable_doc)
+            # if "context" in chunk:
+            #     serializable_context = []
+            #     for context in chunk["context"]:
+            #         serializable_doc = {
+            #             "page_content": context.page_content.replace('"', '\\"'),
+            #             "metadata": context.metadata,
+            #         }
+            #         serializable_context.append(serializable_doc)
                 
-                # 先替换引号，再序列化
-                escaped_context = json.dumps({
-                    "context": serializable_context
-                })
+            #     # 先替换引号，再序列化
+            #     escaped_context = json.dumps({
+            #         "context": serializable_context
+            #     })
 
-                # 转成 base64
-                base64_context = base64.b64encode(escaped_context.encode()).decode()
+            #     # 转成 base64
+            #     base64_context = base64.b64encode(escaped_context.encode()).decode()
 
-                # 连接符号
-                separator = "__LLM_RESPONSE__"
+            #     # 连接符号
+            #     separator = "__LLM_RESPONSE__"
                 
-                yield f'0:"{base64_context}{separator}"\n'
-                full_response += base64_context + separator
+            #     yield f'0:"{base64_context}{separator}"\n'
+            #     full_response += base64_context + separator
 
             if "answer" in chunk:
-                answer_chunk = chunk["answer"]
-                full_response += answer_chunk
-                # Escape quotes and use json.dumps to properly handle special characters
-                escaped_chunk = (answer_chunk
-                    .replace('"', '\\"')
-                    .replace('\n', '\\n'))
-                yield f'0:"{escaped_chunk}"\n'
-            
+                full_response += chunk["answer"]
+        # Escape ký tự đặc biệt, xuống dòng
+        escaped_response = full_response.replace('"', '\\"').replace('\n', '\\n')
+        # Yield đúng format 1 lần duy nhất với toàn bộ response
+        yield f'0:"{escaped_response}"\n'
         # Update bot message content
         bot_message.content = full_response
         db.commit()

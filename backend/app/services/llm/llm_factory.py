@@ -39,8 +39,11 @@ class LLMFactory:
             return OllamaLLM(
                 model=settings.OLLAMA_MODEL,
                 base_url=settings.OLLAMA_API_BASE,
-                temperature=temperature,
-                streaming=streaming
+                temperature=0.0,
+                streaming=True,
+                repetition_penalty=1.2,
+                top_p=0.9,
+                top_k=50
             )
         # Add more providers here as needed
         # elif provider.lower() == "anthropic":
