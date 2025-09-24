@@ -36,9 +36,13 @@ class ChromaVectorStore(BaseVectorStore):
     
     def __init__(self, collection_name: str, embedding_function: Embeddings, **kwargs):
         """Initialize Chroma vector store"""
+        # chroma_client = chromadb.HttpClient(
+        #      host="http://chromadb:8000"  # hoặc "http://chromadb:8000" nếu backend chạy trong Docker network cùng chromadb container
+        # )     
+
         chroma_client = chromadb.HttpClient(
              host="http://localhost:8001"  # hoặc "http://chromadb:8000" nếu backend chạy trong Docker network cùng chromadb container
-        )       
+        ) 
 
         self._store = Chroma(
             client=chroma_client,

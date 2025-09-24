@@ -6,6 +6,8 @@ from app.core.config import settings
 from app.core.minio import init_minio
 from app.startup.migarate import DatabaseMigrator
 from fastapi import FastAPI
+from app.db.session import SessionLocal
+from app.startup.seed_data import seed_knowledge_base
 
 logging.basicConfig(
     level=logging.INFO,
@@ -27,9 +29,21 @@ app.include_router(openapi_router, prefix="/openapi")
 async def startup_event():
     # Initialize MinIO
     init_minio()
+    
     # Run database migrations
     migrator = DatabaseMigrator(settings.get_database_url)
     migrator.run_migrations()
+
+       # Tạo session DB
+    db = SessionLocal()
+    try:
+        # Gọi hàm seed data tạo user, knowledge base, upload document
+        await seed_knowledge_base(db)
+    except Exception as e:
+        print(f"Seed data failed: {e}")
+    finally:
+        db.close()
+    
 
 
 @app.get("/")

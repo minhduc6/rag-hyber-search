@@ -27,7 +27,7 @@ class Settings(BaseSettings):
         )
 
     # JWT settings
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "your-secret-key-here")
+    SECRET_KEY: str = os.getenv("SECRET_KEY", "Ab123456")
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "10080"))
 
@@ -43,15 +43,15 @@ class Settings(BaseSettings):
     MINIO_SECRET_KEY: str = os.getenv("MINIO_SECRET_KEY", "minioadmin")
     MINIO_BUCKET_NAME: str = os.getenv("MINIO_BUCKET_NAME", "documents")
 
-    # OpenAI settings
-    OPENAI_API_BASE: str = os.getenv("OPENAI_API_BASE", "https://api.openai.com/v1")
-    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "your-openai-api-key-here")
-    OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "gpt-4")
-    OPENAI_EMBEDDINGS_MODEL: str = os.getenv("OPENAI_EMBEDDINGS_MODEL", "text-embedding-ada-002")
+    # # OpenAI settings
+    # OPENAI_API_BASE: str = os.getenv("OPENAI_API_BASE", "https://api.openai.com/v1")
+    # OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "your-openai-api-key-here")
+    # OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "gpt-4")
+    # OPENAI_EMBEDDINGS_MODEL: str = os.getenv("OPENAI_EMBEDDINGS_MODEL", "text-embedding-ada-002")
 
     # DashScope settings
-    DASH_SCOPE_API_KEY: str = os.getenv("DASH_SCOPE_API_KEY", "")
-    DASH_SCOPE_EMBEDDINGS_MODEL: str = os.getenv("DASH_SCOPE_EMBEDDINGS_MODEL", "")
+    # DASH_SCOPE_API_KEY: str = os.getenv("DASH_SCOPE_API_KEY", "")
+    # DASH_SCOPE_EMBEDDINGS_MODEL: str = os.getenv("DASH_SCOPE_EMBEDDINGS_MODEL", "")
 
     # Vector Store settings
     VECTOR_STORE_TYPE: str = os.getenv("VECTOR_STORE_TYPE", "chroma")
@@ -69,12 +69,17 @@ class Settings(BaseSettings):
     DEEPSEEK_API_BASE: str = "https://api.deepseek.com/v1"  # 默认 API 地址
     DEEPSEEK_MODEL: str = "deepseek-chat"  # 默认模型名称
 
+
+    OLLAMA_API_BASE: str = os.getenv("OLLAMA_API_BASE", "http://localhost:11434")
+    OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "gemma3:4b")
+    OLLAMA_EMBEDDINGS_MODEL: str = os.getenv("OLLAMA_EMBEDDINGS_MODEL", "nomic-embed-text")
+
     # Ollama settings
-    OLLAMA_API_BASE: str = "http://localhost:11434"
-    OLLAMA_MODEL: str = "gemma3:4b"
-    OLLAMA_EMBEDDINGS_MODEL: str = os.getenv(
-        "OLLAMA_EMBEDDINGS_MODEL", "nomic-embed-text"
-    )  # Added this line
+    # OLLAMA_API_BASE: str = "http://10.2.145.205:30080/ollama"  # Ollama API 地址
+    # OLLAMA_MODEL: str = "gemma3:12b"
+    # OLLAMA_EMBEDDINGS_MODEL: str = os.getenv(
+    #     "OLLAMA_EMBEDDINGS_MODEL", "nomic-embed-text"
+    # )  # Added this line
 
     class Config:
         env_file = ".env"

@@ -24,7 +24,6 @@ from app.core.minio import get_minio_client
 from app.models.knowledge import ProcessingTask, Document, DocumentChunk
 from app.services.chunk_record import ChunkRecord
 import uuid
-import tiktoken
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import UnstructuredFileLoader
 from minio.error import MinioException
@@ -48,11 +47,6 @@ class PreviewResult(BaseModel):
     chunks: List[TextChunk]
     total_chunks: int
 
-# --- 1. Định nghĩa hàm đếm token ---
-enc = tiktoken.get_encoding("cl100k_base")
-
-def token_len(s: str) -> int:
-    return len(enc.encode(s))
 
 async def process_document(file_path: str, file_name: str, kb_id: int, document_id: int, chunk_size: int = 1000, chunk_overlap: int = 200) -> None:
     """Process document and store in vector database with incremental updates"""
@@ -244,7 +238,7 @@ async def process_document_background(
     kb_id: int,
     task_id: int,
     db: Session = None,
-    chunk_size: int = 1024,
+    chunk_size: int = 2048,
     chunk_overlap: int = 200
 ) -> None:
     """Process document in background"""

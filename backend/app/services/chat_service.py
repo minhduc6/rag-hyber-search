@@ -134,7 +134,7 @@ async def generate_response(
             "có thể tham chiếu đến ngữ cảnh trong lịch sử hội thoại, "
             "hãy xây dựng lại câu hỏi sao cho nó có thể hiểu được độc lập "
             "mà không cần đến lịch sử hội thoại. KHÔNG trả lời câu hỏi, chỉ "
-            "định dạng lại câu hỏi nếu cần, hoặc giữ nguyên nếu đã rõ."
+            "định dạng lại câu hỏi nếu cần, hoặc giữ nguyên nếu đã rõ. Bạn chỉ trả lời bằng tiếng việt "
         )
         contextualize_q_prompt = ChatPromptTemplate.from_messages([
             ("system", contextualize_q_system_prompt),
@@ -159,6 +159,7 @@ async def generate_response(
             "Bạn chỉ được phép sử dụng thông tin trong QUY TRÌNH NỘI BỘ để trả lời câu hỏi.\n"
             "Nếu không tìm thấy thông tin hoặc không chắc chắn, hãy báo rõ.\n"
             "Trả lời ngắn gọn, chính xác, lịch sự, có trích dẫn đoạn tham chiếu theo định dạng [Trích dẫn: đoạn số X].\n"
+            "Bạn chỉ trả lời bằng tiếng việt \n"
             "QUY TRÌNH NỘI BỘ:\n{context}"
         )
 

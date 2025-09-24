@@ -6,6 +6,19 @@ class MessageBase(BaseModel):
     content: str
     role: str
 
+
+class ChatMessageRequest(BaseModel):
+    role: str
+    content: str
+
+class AgentRequest(BaseModel):
+    appId: Optional[str]
+    sessionId: Optional[str]
+    userId: Optional[str]
+    message: str
+    history: Optional[List[ChatMessageRequest]] = None 
+
+
 class MessageCreate(MessageBase):
     chat_id: int
 
@@ -37,3 +50,4 @@ class ChatResponse(ChatBase):
 
     class Config:
         from_attributes = True 
+    

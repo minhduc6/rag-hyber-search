@@ -16,7 +16,7 @@ class LLMFactory:
         Create a LLM instance based on the provider
         """
         # If no provider specified, use the one from settings
-        provider = provider or settings.CHAT_PROVIDER
+        provider = 'ollama'
 
         if provider.lower() == "openai":
             return ChatOpenAI(
